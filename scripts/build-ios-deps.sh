@@ -178,11 +178,14 @@ build_angle() {
 	local angle_dir="${DEPS}/angle"
 	local angle_src="${angle_dir}/src"
 	local angle_build="${angle_dir}/build"
-	mkdir -p "${angle_src}" "${angle_build}"
+	mkdir -p "${angle_dir}"
 
-	if [ ! -d "${angle_src}/.git" ]; then
+	if [ ! -f "${angle_src}/CMakeLists.txt" ]; then
+		rm -rf "${angle_src}"
 		git clone --depth 1 --branch main https://github.com/google/angle.git "${angle_src}"
 	fi
+
+	mkdir -p "${angle_build}"
 
 	cmake -S "${angle_src}" -B "${angle_build}" "${CMAKE_IOS[@]}" \
 		-DANGLE_ENABLE_METAL=ON \
