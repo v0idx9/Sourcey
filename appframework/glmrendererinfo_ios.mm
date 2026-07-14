@@ -7,7 +7,13 @@
 // $NoKeywords: $
 //=============================================================================//
 
+#if defined( IOS )
+#define GL_GLEXT_PROTOTYPES 1
+#include <OpenGLES/ES3/gl.h>
+#include <OpenGLES/ES3/glext.h>
+#else
 #include "togl/linuxwin/togl_sdl_gl.h"
+#endif
 
 #undef MIN
 #undef MAX
