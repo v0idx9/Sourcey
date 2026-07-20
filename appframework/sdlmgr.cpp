@@ -647,8 +647,15 @@ InitReturnVal_t CSDLMgr::Init()
 	l_egl = dlopen("libEGL.so", RTLD_LAZY);
 	l_gles = dlopen("libGLESv3.so", RTLD_LAZY);
 	#else
-	l_egl = dlopen("libEGL.framework/libEGL", RTLD_LAZY); // for ANGLE support
-	l_gles = dlopen("libGLESv2.framework/libGLESv2", RTLD_LAZY);
+	// ANGLE ships as flat dylibs linked directly into this module, so the EGL
+	// symbols are already in-process. dlopen by the path we actually bundle to
+	// get a handle for the sRGB-capability probe below, and fall back to
+	// RTLD_DEFAULT so a lookup miss can never become a null function call
+	// (dlopen of the old libEGL.framework path returned NULL and crashed here).
+	l_egl = dlopen("@executable_path/libEGL.dylib", RTLD_LAZY); // for ANGLE support
+	l_gles = dlopen("@executable_path/libGLESv2.dylib", RTLD_LAZY);
+	if ( !l_egl ) l_egl = RTLD_DEFAULT;
+	if ( !l_gles ) l_gles = RTLD_DEFAULT;
 	#endif
 
 	if( l_egl )
@@ -664,7 +671,7 @@ InitReturnVal_t CSDLMgr::Init()
 	_eglGetDisplay = (t_eglGetDisplay)dlsym(l_egl, "eglGetDisplay");
 	_eglQueryString = (t_eglQueryString)dlsym(l_egl, "eglQueryString");
 
-	if( _eglInitialize && _eglInitialize && _eglQueryString )
+	if( _eglInitialize && _eglGetDisplay && _eglQueryString )
 	{
 		EGLDisplay display = _eglGetDisplay(EGL_DEFAULT_DISPLAY);
 		if( _eglInitialize(display, NULL, NULL) != -1
