@@ -643,20 +643,30 @@ InitReturnVal_t CSDLMgr::Init()
 
 
 #ifdef TOGLES
-	#ifndef ANGLE
+	#ifdef ANGLE
+	// ANGLE is linked directly into this module, so the EGL entry points are
+	// resolved at load time -- there is no library to dlopen and no reason to
+	// dlsym them. The previous code dlopen'd a path that does not exist in this
+	// bundle ("libEGL.framework/libEGL"; we ship flat dylibs) and then called
+	// through the resulting null function pointers, crashing here in Init().
+	// Call the linked symbols directly and guard every result.
+	_glGetProcAddress = (t_glGetProcAddress)&eglGetProcAddress;
+
+	SET_GL_ATTR(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+	SET_GL_ATTR(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SET_GL_ATTR(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+
+	{
+		EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+		const char *exts = NULL;
+		if ( display != EGL_NO_DISPLAY && eglInitialize(display, NULL, NULL) )
+			exts = eglQueryString(display, EGL_EXTENSIONS);
+		if ( exts && strstr(exts, "EGL_KHR_gl_colorspace") )
+			SET_GL_ATTR(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, 1)
+	}
+	#else
 	l_egl = dlopen("libEGL.so", RTLD_LAZY);
 	l_gles = dlopen("libGLESv3.so", RTLD_LAZY);
-	#else
-	// ANGLE ships as flat dylibs linked directly into this module, so the EGL
-	// symbols are already in-process. dlopen by the path we actually bundle to
-	// get a handle for the sRGB-capability probe below, and fall back to
-	// RTLD_DEFAULT so a lookup miss can never become a null function call
-	// (dlopen of the old libEGL.framework path returned NULL and crashed here).
-	l_egl = dlopen("@executable_path/libEGL.dylib", RTLD_LAZY); // for ANGLE support
-	l_gles = dlopen("@executable_path/libGLESv2.dylib", RTLD_LAZY);
-	if ( !l_egl ) l_egl = RTLD_DEFAULT;
-	if ( !l_gles ) l_gles = RTLD_DEFAULT;
-	#endif
 
 	if( l_egl )
 	{
@@ -678,6 +688,7 @@ InitReturnVal_t CSDLMgr::Init()
 			&& strstr(_eglQueryString(display, EGL_EXTENSIONS) ,"EGL_KHR_gl_colorspace") )
 				SET_GL_ATTR(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, 1)
 	}
+	#endif
 #elif ANDROID
 	bool m_bOGL = false;
 
