@@ -90,7 +90,10 @@
 
 #include "tier0/valve_minmax_on.h"	// GCC 4.2.2 headers screw up our min/max defs.
 
-#if defined( IOS )
+// Only for the native GLES path. Under ANGLE the GL declarations come from
+// GL/gl.h + GL/glext.h via rendermechanism.h, and the system OpenGLES headers
+// conflict with them (glShaderSource et al. differ in const-qualification).
+#if defined( IOS ) && !defined( ANGLE )
 #define GL_GLEXT_PROTOTYPES 1
 #include <OpenGLES/ES3/gl.h>
 #include <OpenGLES/ES3/glext.h>
