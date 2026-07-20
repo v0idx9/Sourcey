@@ -221,22 +221,44 @@ build_angle() {
 	echo "==> ANGLE build products:"
 	find "${angle_build}" -maxdepth 2 \( -name 'libEGL*' -o -name 'libGLESv2*' \) -print
 
-	local found_egl=0 found_gles=0 artifact
-	while IFS= read -r artifact; do
-		[ -n "${artifact}" ] || continue
-		cp -a "${artifact}" "${OUT}/$(basename "${artifact}")"
-		case "$(basename "${artifact}")" in
-			libEGL*) found_egl=1 ;;
-			libGLESv2*) found_gles=1 ;;
-		esac
-	done < <(find "${angle_build}" -maxdepth 2 \( -name 'libEGL.dylib' -o -name 'libGLESv2.dylib' -o -name 'libEGL.a' -o -name 'libGLESv2.a' \) 2>/dev/null)
+	# On iOS gn emits framework bundles (libEGL.framework/libEGL), but the engine
+	# links plain -lEGL/-lGLESv2 and the packaging script ships flat dylibs, so
+	# lift the Mach-O binaries out and give them dylib install names.
+	extract_angle_lib() {
+		local name="$1"                       # libEGL / libGLESv2
+		local src="${angle_build}/${name}.framework/${name}"
+		local dst="${OUT}/${name}.dylib"
 
-	if [ "${found_egl}" != "1" ] || [ "${found_gles}" != "1" ]; then
-		echo "ERROR: ANGLE built but libEGL/libGLESv2 were not found under ${angle_build}" >&2
-		echo "Contents:" >&2
-		ls -la "${angle_build}" >&2 | head -50
-		return 1
-	fi
+		if [ ! -f "${src}" ]; then
+			src="$(find "${angle_build}" -maxdepth 2 -name "${name}.dylib" -print -quit 2>/dev/null)"
+		fi
+		if [ ! -f "${src}" ]; then
+			echo "ERROR: ANGLE built but ${name} was not found under ${angle_build}" >&2
+			ls -la "${angle_build}" >&2
+			return 1
+		fi
+
+		cp "${src}" "${dst}"
+		install_name_tool -id "@executable_path/${name}.dylib" "${dst}"
+
+		# Rewrite framework-style references between them to the flat dylibs.
+		local dep
+		while IFS= read -r dep; do
+			case "${dep}" in
+				*libEGL.framework/libEGL)
+					install_name_tool -change "${dep}" "@executable_path/libEGL.dylib" "${dst}" || true
+					;;
+				*libGLESv2.framework/libGLESv2)
+					install_name_tool -change "${dep}" "@executable_path/libGLESv2.dylib" "${dst}" || true
+					;;
+			esac
+		done < <(otool -L "${dst}" | tail -n +2 | awk '{print $1}')
+
+		echo "==> extracted ${name} -> ${dst}"
+	}
+
+	extract_angle_lib libEGL
+	extract_angle_lib libGLESv2
 
 	mkdir -p "${ROOT}/thirdparty/angle/include"
 	rsync -a "${angle_src}/include/" "${ROOT}/thirdparty/angle/include/"
