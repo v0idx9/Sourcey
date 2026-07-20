@@ -1,5 +1,10 @@
 typedef unsigned int   uint;
 
+// glmdisplay.h expects stdint and the GL types to already be in scope; on iOS
+// SDL_opengl.h provides neither, so pull in platform.h the way the rest of the
+// tree does.
+#include "tier0/platform.h"
+
 #include "../public/togles/linuxwin/glmdisplay.h"
 #include "../public/togles/linuxwin/glmdisplaydb.h"
 
