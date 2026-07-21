@@ -7,6 +7,10 @@
 // $NoKeywords: $
 //=============================================================================//
 
+// System frameworks must come before the Source headers: those redefine MIN/MAX,
+// BOOL and friends, which breaks MacTypes.h/objc.h if UIKit is imported later.
+#import <UIKit/UIKit.h>
+
 #include "GL/gl.h"
 
 #undef MIN
@@ -704,7 +708,6 @@ void	GLMDisplayInfo::Dump( int which )
 	}
 }
 
-#import <UIKit/UIKit.h>
 
 // Native screen size in PIXELS (not points). SDL reports both the desktop
 // display mode and the GL drawable in points on iOS, so the engine sizes its
