@@ -272,6 +272,11 @@ def define_platform(conf):
 			os.path.abspath('thirdparty/angle/include'),
 			#'/opt/local/include'
 		])
+		# gcsdk headers (msgprotobuf.h etc.) include the generated *.pb.h
+		# directly, so these must be visible engine-wide, not just to game/.
+		for _p in ('thirdparty/protobuf/include', 'game/shared/generated_proto'):
+			if os.path.isdir(os.path.abspath(_p)):
+				conf.env.append_unique('INCLUDES', [os.path.abspath(_p)])
 		if not conf.env.IOS:
 			conf.env.append_unique('DEFINES', [
 				'OSX=1', '_OSX=1'

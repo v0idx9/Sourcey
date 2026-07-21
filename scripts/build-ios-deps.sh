@@ -343,15 +343,29 @@ build_protobuf() {
 	# 3) generate the TF/econ protobuf sources
 	local gen="${ROOT}/game/shared/generated_proto"
 	mkdir -p "${gen}"
-	for proto in game/shared/tf/tf_gcmessages.proto \
-	             game/shared/tf/tf_proto_def_messages.proto \
-	             game/shared/econ/econ_gcmessages.proto; do
-		[ -f "${ROOT}/${proto}" ] || continue
-		"${dir}/host/protoc" \
-			--proto_path="${ROOT}/game/shared/tf" \
-			--proto_path="${ROOT}/game/shared/econ" \
-			--cpp_out="${gen}" "${ROOT}/${proto}" \
-			&& echo "==> generated $(basename ${proto} .proto).pb.cc"
+	# The gcsdk/econ/tf protos import each other (tf_gcmessages needs
+	# steammessages + base_gcmessages, gcsdk_gcmessages needs steammessages),
+	# so every directory has to be on the import path.
+	local proto_paths=(
+		--proto_path="${ROOT}/gcsdk"
+		--proto_path="${ROOT}/game/shared"
+		--proto_path="${ROOT}/game/shared/tf"
+		--proto_path="${ROOT}/game/shared/econ"
+	)
+	for proto in gcsdk/steammessages.proto \
+	             gcsdk/gcsystemmsgs.proto \
+	             gcsdk/gcsdk_gcmessages.proto \
+	             game/shared/base_gcmessages.proto \
+	             game/shared/econ/econ_gcmessages.proto \
+	             game/shared/tf/tf_gcmessages.proto \
+	             game/shared/tf/tf_proto_def_messages.proto; do
+		[ -f "${ROOT}/${proto}" ] || { echo "==> missing proto: ${proto}" >&2; continue; }
+		if "${dir}/host/protoc" "${proto_paths[@]}" --cpp_out="${gen}" "${ROOT}/${proto}"; then
+			echo "==> generated $(basename ${proto} .proto).pb.cc"
+		else
+			echo "ERROR: protoc failed on ${proto}" >&2
+			return 1
+		fi
 	done
 	ls -la "${gen}" || true
 }

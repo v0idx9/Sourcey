@@ -39,7 +39,14 @@ public:
 		GROW_NONE=0,		// Don't allow new blobs.
 		GROW_FAST=1,		// New blob size is numElements * (i+1)  (ie: the blocks it allocates
 							// get larger and larger each time it allocates one).
-		GROW_SLOW=2			// New blob size is numElements.
+		GROW_SLOW=2,		// New blob size is numElements.
+
+		// The gcsdk / econ code imported from the Source SDK 2013 refers to
+		// these by their newer, prefixed names. Same values, so alias them
+		// rather than patching every call site.
+		UTLMEMORYPOOL_GROW_NONE = GROW_NONE,
+		UTLMEMORYPOOL_GROW_FAST = GROW_FAST,
+		UTLMEMORYPOOL_GROW_SLOW = GROW_SLOW
 	};
 
 				CUtlMemoryPool( int blockSize, int numElements, int growMode = GROW_FAST, const char *pszAllocOwner = NULL, int nAlignment = 0 );
