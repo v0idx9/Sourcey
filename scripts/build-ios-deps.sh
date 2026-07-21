@@ -296,11 +296,16 @@ build_protobuf() {
 
 	# 1) host protoc (native, so it can actually run on the runner)
 	if [ ! -x "${dir}/host/protoc" ]; then
+		# NATIVE build: build-ios-common.sh exports CC/CXX/CFLAGS carrying
+		# --target=aarch64-apple-ios, which would cross-compile protoc for iOS
+		# and leave it unable to run on the runner. Scrub the environment.
+		env -u CC -u CXX -u CFLAGS -u CXXFLAGS -u LDFLAGS -u AR -u RANLIB -u STRIP \
 		cmake -S "${src}" -B "${dir}/host-build" -G Ninja \
 			-DCMAKE_BUILD_TYPE=Release \
+			-DCMAKE_CXX_STANDARD=17 \
 			-Dprotobuf_BUILD_TESTS=OFF \
-			-Dprotobuf_BUILD_SHARED_LIBS=OFF \
-			-Dprotobuf_ABSL_PROVIDER=module
+			-Dprotobuf_BUILD_SHARED_LIBS=OFF
+		env -u CC -u CXX -u CFLAGS -u CXXFLAGS -u LDFLAGS -u AR -u RANLIB -u STRIP \
 		cmake --build "${dir}/host-build" --target protoc
 		mkdir -p "${dir}/host"
 		cp "$(find "${dir}/host-build" -name protoc -type f -perm -u+x | head -1)" "${dir}/host/protoc"
@@ -308,11 +313,17 @@ build_protobuf() {
 	echo "==> host protoc: $("${dir}/host/protoc" --version 2>&1 || echo FAILED)"
 
 	# 2) arm64 ios runtime
+	# Do not inherit the exported CC/CXX/CFLAGS here either: those bake in flags
+	# that break libc++ header resolution (<cstdint> cannot find libc++'s
+	# <stdint.h>, nullptr_t undeclared). CMAKE_IOS already describes the target,
+	# so let CMake construct the toolchain flags itself.
+	env -u CC -u CXX -u CFLAGS -u CXXFLAGS -u LDFLAGS -u AR -u RANLIB -u STRIP \
 	cmake -S "${src}" -B "${dir}/ios-build" "${CMAKE_IOS[@]}" \
+		-DCMAKE_CXX_STANDARD=17 \
 		-Dprotobuf_BUILD_TESTS=OFF \
 		-Dprotobuf_BUILD_PROTOC_BINARIES=OFF \
-		-Dprotobuf_BUILD_SHARED_LIBS=OFF \
-		-Dprotobuf_ABSL_PROVIDER=module
+		-Dprotobuf_BUILD_SHARED_LIBS=OFF
+	env -u CC -u CXX -u CFLAGS -u CXXFLAGS -u LDFLAGS -u AR -u RANLIB -u STRIP \
 	cmake --build "${dir}/ios-build"
 
 	find "${dir}/ios-build" -name "libprotobuf*.a" -exec cp {} "${OUT}/" \;
