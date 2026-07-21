@@ -144,7 +144,10 @@ def parse_vpcs( env ,vpcs, basedir ):
 				next_br = False
 
 		key = project_key(ret)
-		l=ret[key]
+		# include-style vpcs (e.g. tf_gcmessages_include.vpc) carry only a
+		# $Project block -- and some carry neither -- so do not assume either
+		# key exists.
+		l = ret.get(key, []) if key else []
 
 		for i in l:
 			if '-$File' in i and '.h"' not in i:
@@ -163,7 +166,7 @@ def parse_vpcs( env ,vpcs, basedir ):
 					s = fix_dos_path(j.split('"')[1])
 					sources.append(s)
 
-		for i in ret['$Configuration']:
+		for i in ret.get('$Configuration', []):
 			if '$PreprocessorDefinitions' in i:
 				i = i.replace('$BASE', '')
 				s = i.split('"')[1]
