@@ -1473,11 +1473,18 @@ void CSDLMgr::ShowPixels( CShowPixelsParams *params )
 			int dstxmax = 0;
 			int dstymax = 0;
 
-			// Destination is the default framebuffer, which is the full native
-			// drawable in PIXELS (the window is high-DPI + Metal). Using
-			// SDL_GetWindowSize here returns points and blits the scene into a
-			// bottom-left corner of the screen.
-			SDL_GL_GetDrawableSize(m_Window, &dstxmax, &dstymax);
+			// Destination is the default framebuffer = the ANGLE window surface,
+			// which is the full native Metal drawable in PIXELS. SDL's window and
+			// even SDL_GL_GetDrawableSize report points here (~1/3 on a 3x
+			// screen), which blits the scene into a bottom-left corner. Ask ANGLE
+			// for the real surface size instead.
+			dstxmax = 0; dstymax = 0;
+#if defined( IOS )
+			eglQuerySurface(native_display, surface, EGL_WIDTH, &dstxmax);
+			eglQuerySurface(native_display, surface, EGL_HEIGHT, &dstymax);
+#endif
+			if (dstxmax <= 0 || dstymax <= 0)
+				SDL_GL_GetDrawableSize(m_Window, &dstxmax, &dstymax);
 
 			if (gl_blit_halfx.GetInt())
 			{
