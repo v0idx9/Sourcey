@@ -2281,6 +2281,22 @@ void GLMContext::Present( CGLMTex *tex )
 				// do not ask for LINEAR if blit is unscaled
 				// NULL means targeting GL_BACK.  Blit2 will break it down into two steps if needed, and will handle resolve, scale, flip.
 				bool blitScales	=	(showparams.m_width != static_cast<int>(dstWidth)) || (showparams.m_height != static_cast<int>(dstHeight));
+
+				// This -- not CSDLMgr::ShowPixels -- is the present blit that
+				// actually runs (m_noBlit is set below, disabling that one).
+				{
+					static int s_nPresentLogged = 0;
+					if ( s_nPresentLogged < 3 )
+					{
+						s_nPresentLogged++;
+						Msg( "DIAG: Present Blit2 src=%dx%d (aspect %.3f) -> dst=%ux%u (aspect %.3f) scales=%d\n",
+							showparams.m_width, showparams.m_height,
+							showparams.m_height ? (float)showparams.m_width / (float)showparams.m_height : 0.0f,
+							dstWidth, dstHeight,
+							dstHeight ? (float)dstWidth / (float)dstHeight : 0.0f,
+							(int)blitScales );
+					}
+				}
 				Blit2(	tex, &srcRect, 0,0,
 								NULL, &dstRect, 0,0,
 								blitScales ? GL_LINEAR : GL_NEAREST );
