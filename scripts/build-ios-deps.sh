@@ -307,8 +307,18 @@ build_protobuf() {
 			-Dprotobuf_BUILD_SHARED_LIBS=OFF
 		env -u CC -u CXX -u CFLAGS -u CXXFLAGS -u LDFLAGS -u AR -u RANLIB -u STRIP \
 		cmake --build "${dir}/host-build" --target protoc
+		# protoc is built as protoc-<version> with 'protoc' as a symlink, so
+		# -type f matches neither the symlink nor the versioned name.
+		local protoc_bin
+		protoc_bin="$(find "${dir}/host-build" -maxdepth 2 -name 'protoc*' -perm -u+x ! -type d | head -1)"
+		if [ -z "${protoc_bin}" ]; then
+			echo "ERROR: protoc built but no binary found under ${dir}/host-build" >&2
+			ls -la "${dir}/host-build" >&2
+			return 1
+		fi
 		mkdir -p "${dir}/host"
-		cp "$(find "${dir}/host-build" -name protoc -type f -perm -u+x | head -1)" "${dir}/host/protoc"
+		cp "${protoc_bin}" "${dir}/host/protoc"
+		chmod +x "${dir}/host/protoc"
 	fi
 	echo "==> host protoc: $("${dir}/host/protoc" --version 2>&1 || echo FAILED)"
 
