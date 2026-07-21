@@ -39,3 +39,11 @@ waf3*/
 source-engine.sln
 Payload/
 *.ipa
+
+# TF2 ships legitimate sources matching the *obj_* rule above (the Engineer
+# buildables -- sentry gun, dispenser, teleporter, sapper -- and the proto
+# script object defs). That rule is meant for build artifacts, so re-include
+# real source files.
+!game/**/*obj_*.cpp
+!game/**/*obj_*.h
+!game/**/*obj_*.proto
