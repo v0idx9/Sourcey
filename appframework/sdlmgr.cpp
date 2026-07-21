@@ -1575,6 +1575,10 @@ void CSDLMgr::ShowPixels( CShowPixelsParams *params )
 #endif
 
 		}
+#if defined( OSX )
+		// Legacy immediate-mode present (glBegin/glVertex3f/glTexCoord2f).
+		// Desktop GL only -- those entry points do not exist in OpenGL ES,
+		// so iOS always uses the FBO blit path above.
 		else
 		{
 			// old blit - gets very dark output with sRGB sources... not good
@@ -1650,6 +1654,7 @@ void CSDLMgr::ShowPixels( CShowPixelsParams *params )
 			}
 
 		}
+#endif // OSX
 	}
 #endif
 
