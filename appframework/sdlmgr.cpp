@@ -656,14 +656,11 @@ InitReturnVal_t CSDLMgr::Init()
 	SET_GL_ATTR(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SET_GL_ATTR(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 
-	{
-		EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-		const char *exts = NULL;
-		if ( display != EGL_NO_DISPLAY && eglInitialize(display, NULL, NULL) )
-			exts = eglQueryString(display, EGL_EXTENSIONS);
-		if ( exts && strstr(exts, "EGL_KHR_gl_colorspace") )
-			SET_GL_ATTR(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, 1)
-	}
+	// NOTE: deliberately NOT probing for EGL_KHR_gl_colorspace to set
+	// SDL_GL_FRAMEBUFFER_SRGB_CAPABLE. On the test tag that probe was a no-op
+	// (its relative dlopen failed), leaving the framebuffer non-sRGB and the
+	// engine's fake-sRGB shader path active -- which is the intended gamma
+	// behaviour here. Enabling it changed the look; keep it off to match.
 	#else
 	l_egl = dlopen("libEGL.so", RTLD_LAZY);
 	l_gles = dlopen("libGLESv3.so", RTLD_LAZY);
