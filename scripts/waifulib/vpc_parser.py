@@ -164,6 +164,11 @@ def parse_vpcs( env ,vpcs, basedir ):
 				for j in i.split(';'):
 					j = j.replace('$SRCDIR', basedir)
 					s = fix_dos_path(j.split('"')[1])
+					# vpcs also list non-code assets as $File (client_tf.vpc
+					# references .res/.txt game content). Only hand the compiler
+					# things it can actually build.
+					if not s.lower().endswith(('.cpp', '.c', '.cc', '.cxx', '.m', '.mm', '.asm')):
+						continue
 					sources.append(s)
 
 		for i in ret.get('$Configuration', []):
