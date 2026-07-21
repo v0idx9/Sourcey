@@ -1451,7 +1451,11 @@ void CSDLMgr::ShowPixels( CShowPixelsParams *params )
 
 	}
 
-#ifdef OSX
+// iOS needs this too: the engine renders the frame into an offscreen texture
+// and this blit is what scales it onto the real surface. It was OSX-only, so on
+// iOS nothing ever presented the render target at the surface's geometry. The
+// reference build does exactly this ("Present blit src=1398x645 -> dst=2796x1290").
+#if defined( OSX ) || defined( IOS )
 	if (!params->m_noBlit)
 	{
 		if ( params->m_useBlit ) // FBO blit path - which is what we *should* be using.  But if the params say no, then don't do it because the ext is not there.
@@ -1506,6 +1510,17 @@ void CSDLMgr::ShowPixels( CShowPixelsParams *params )
 #endif
 			if (dstxmax <= 0 || dstymax <= 0)
 				SDL_GL_GetDrawableSize(m_Window, &dstxmax, &dstymax);
+
+			{
+				static int s_nBlitLogged = 0;
+				if ( s_nBlitLogged < 3 )
+				{
+					s_nBlitLogged++;
+					Msg( "DIAG: Present blit src=%dx%d (aspect %.3f) -> dst=%dx%d (aspect %.3f)\n",
+						srcxmax, srcymax, srcymax ? (float)srcxmax / (float)srcymax : 0.0f,
+						dstxmax, dstymax, dstymax ? (float)dstxmax / (float)dstymax : 0.0f );
+				}
+			}
 
 			if (gl_blit_halfx.GetInt())
 			{
