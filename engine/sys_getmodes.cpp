@@ -529,6 +529,30 @@ void CVideoMode_Common::ResetCurrentModeForNewResolution( int nWidth, int nHeigh
 	m_nStereoWidth = pMode->width;
 	m_nStereoHeight = pMode->height;
 
+#if defined( IOS )
+	// The display is the whole screen and cannot be changed. The requested
+	// resolution is never in the mode list here, so FindVideoMode falls back to
+	// DefaultVideoMode (640x480, 4:3); rendering that across the real 2.167
+	// surface is what stretches the image. Always use the display itself.
+	if ( g_pLauncherMgr )
+	{
+		uint nDispWidth = 0, nDispHeight = 0, nDispRefresh = 0;
+		g_pLauncherMgr->GetNativeDisplayInfo( -1, nDispWidth, nDispHeight, nDispRefresh );
+
+		if ( nDispWidth > 0 && nDispHeight > 0 )
+		{
+			m_nModeWidth   = m_nUIWidth   = m_nStereoWidth   = (int)nDispWidth;
+			m_nModeHeight  = m_nUIHeight  = m_nStereoHeight  = (int)nDispHeight;
+			m_bWindowed = false;
+
+			Msg( "DIAG: iOS mode pinned to display %dx%d (aspect %.3f), was %dx%d\n",
+				m_nModeWidth, m_nModeHeight,
+				m_nModeHeight ? (float)m_nModeWidth / (float)m_nModeHeight : 0.0f,
+				pMode->width, pMode->height );
+		}
+	}
+#endif
+
 	// assume we won't be overriding the position
 	m_bVROverride = false;
 
