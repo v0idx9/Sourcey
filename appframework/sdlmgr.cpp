@@ -742,7 +742,23 @@ InitReturnVal_t CSDLMgr::Init()
 	//  GL entry points, but the game hasn't made a window yet. So it's time
 	//  to make a window! We make a 640x480 one here, and later, when asked
 	//  to really actually make a window, we just resize the one we built here.
-	if ( !CreateHiddenGameWindow( "", 1280, 720 ) )
+	int nInitWidth = 1280, nInitHeight = 720;
+#if defined( IOS )
+	// Use the real screen geometry. A hardcoded 16:9 here becomes the engine's
+	// viewport/mode, and the final present covers the whole (2.167 aspect)
+	// surface -- stretching the image horizontally.
+	{
+		int pw = 0, ph = 0;
+		IOS_GetScreenPixelSize( &pw, &ph );
+		if ( pw > 0 && ph > 0 )
+		{
+			nInitWidth = pw;
+			nInitHeight = ph;
+		}
+	}
+#endif
+
+	if ( !CreateHiddenGameWindow( "", nInitWidth, nInitHeight ) )
 		Error( "CreateGameWindow failed" );
 
 	SDL_HideWindow( m_Window );
@@ -1771,11 +1787,12 @@ void CSDLMgr::SizeWindow( int width, int tall )
 	// drawable) up by the screen scale, which is what made the image look
 	// stretched/zoomed. The viewport below is what actually matters.
 	{
-		static bool s_bLogged = false;
-		if ( !s_bLogged )
+		static int s_nLogged = 0;
+		if ( s_nLogged < 8 )
 		{
-			s_bLogged = true;
-			Msg( "DIAG: SizeWindow viewport=%dx%d (SDL window resize skipped on iOS)\n", width, tall );
+			s_nLogged++;
+			Msg( "DIAG: SizeWindow viewport=%dx%d aspect=%.3f (SDL resize skipped on iOS)\n",
+				width, tall, tall ? (float)width / (float)tall : 0.0f );
 		}
 	}
 #endif
