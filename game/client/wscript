@@ -19,7 +19,13 @@ games = {
 	'portal': ['client_base.vpc', 'client_portal.vpc'],
 	'hl1mp': ['client_base.vpc', 'client_hl1mp.vpc'],
 	'cstrike': ['client_base.vpc', 'client_cstrike.vpc'],
-	'dod': ['client_base.vpc', 'client_dod.vpc']
+	'dod': ['client_base.vpc', 'client_dod.vpc'],
+	'tf': [
+		'client_base.vpc',
+		'client_econ_base.vpc',
+		'../shared/tf/tf_gcmessages_include.vpc',
+		'client_tf.vpc'
+	]
 }
 
 def configure(conf):
@@ -74,6 +80,23 @@ def build(bld):
 		libs += ['USER32']
 
 	source += game["sources"] + ['../../public/tier0/memoverride.cpp']
+
+	# TF2 pulls in the econ / GameCoordinator layer, which is protobuf-based.
+	# build-ios-deps.sh stages the headers and generates the .pb.cc sources.
+	if bld.env.GAMES == 'tf':
+		import os
+		gen_dir = os.path.abspath('../shared/generated_proto')
+		includes += [
+			os.path.abspath('../../thirdparty/protobuf/include'),
+			gen_dir,
+			'../shared/tf',
+			'../shared/econ',
+			'tf',
+			'econ',
+		]
+		if os.path.isdir(gen_dir):
+			source += [os.path.join(gen_dir, f) for f in sorted(os.listdir(gen_dir)) if f.endswith('.pb.cc')]
+		libs += ['PROTOBUF']
 	includes += game["includes"]
 	defines = game["defines"]
 

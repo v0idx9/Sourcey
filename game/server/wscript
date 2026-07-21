@@ -20,7 +20,7 @@ games = {
 	'tf': [
 		'server_base.vpc',
 		'server_econ_base.vpc',
-		'tf/tf_gcmessages_include.vpc',
+		'../shared/tf/tf_gcmessages_include.vpc',
 		'nav_mesh.vpc',
 		'server_tf.vpc'
 	]
@@ -66,6 +66,22 @@ def build(bld):
 	source = game["sources"] + ['../../public/tier0/memoverride.cpp']
 	includes += game["includes"]
 	defines = game["defines"]
+
+	# TF2 pulls in the econ / GameCoordinator layer, which is protobuf-based.
+	# build-ios-deps.sh stages the headers and generates the .pb.cc sources.
+	if bld.env.GAMES == 'tf':
+		import os
+		gen_dir = os.path.abspath('../shared/generated_proto')
+		includes += [
+			os.path.abspath('../../thirdparty/protobuf/include'),
+			gen_dir,
+			'../shared/tf',
+			'../shared/econ',
+			'tf',
+		]
+		if os.path.isdir(gen_dir):
+			source += [os.path.join(gen_dir, f) for f in sorted(os.listdir(gen_dir)) if f.endswith('.pb.cc')]
+		libs += ['PROTOBUF']
 
 	defines.remove('PROTECTED_THINGS_ENABLE')
 

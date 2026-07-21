@@ -34,6 +34,10 @@ if [ "${BUILD_ANGLE:-0}" = "1" ]; then
 		fi
 	done
 fi
+# TF2's econ/GC code needs protobuf; a cache without it is not complete.
+if [ "${BUILD_PROTOBUF:-0}" = "1" ] && [ ! -f "${OUT}/libprotobuf.a" ]; then
+	all_present=false
+fi
 if [ "${all_present}" = true ]; then
 	echo "All iOS deps already present in ${OUT}, skipping rebuild."
 	exit 0
@@ -269,6 +273,68 @@ build_angle() {
 	rsync -a "${angle_src}/include/" "${ROOT}/thirdparty/angle/include/"
 }
 
+# protobuf: required by TF2's econ / GameCoordinator code. Two builds are needed
+# from the SAME source version -- a host protoc to generate the .pb.cc/.pb.h from
+# the .proto files, and an arm64-ios runtime to link against. The TF .proto files
+# are proto2 syntax, which 3.x still supports.
+PROTOBUF_VERSION="v3.21.12"
+
+build_protobuf() {
+	if [ "${BUILD_PROTOBUF:-0}" != "1" ]; then
+		echo "==> skipping protobuf (BUILD_PROTOBUF=${BUILD_PROTOBUF:-0})"
+		return 0
+	fi
+
+	echo "==> protobuf ${PROTOBUF_VERSION}"
+	local dir="${DEPS}/protobuf"
+	local src="${dir}/src"
+
+	if [ ! -d "${src}/.git" ]; then
+		git clone --depth 1 --branch "${PROTOBUF_VERSION}" \
+			https://github.com/protocolbuffers/protobuf.git "${src}"
+	fi
+
+	# 1) host protoc (native, so it can actually run on the runner)
+	if [ ! -x "${dir}/host/protoc" ]; then
+		cmake -S "${src}" -B "${dir}/host-build" -G Ninja \
+			-DCMAKE_BUILD_TYPE=Release \
+			-Dprotobuf_BUILD_TESTS=OFF \
+			-Dprotobuf_BUILD_SHARED_LIBS=OFF \
+			-Dprotobuf_ABSL_PROVIDER=module
+		cmake --build "${dir}/host-build" --target protoc
+		mkdir -p "${dir}/host"
+		cp "$(find "${dir}/host-build" -name protoc -type f -perm -u+x | head -1)" "${dir}/host/protoc"
+	fi
+	echo "==> host protoc: $("${dir}/host/protoc" --version 2>&1 || echo FAILED)"
+
+	# 2) arm64 ios runtime
+	cmake -S "${src}" -B "${dir}/ios-build" "${CMAKE_IOS[@]}" \
+		-Dprotobuf_BUILD_TESTS=OFF \
+		-Dprotobuf_BUILD_PROTOC_BINARIES=OFF \
+		-Dprotobuf_BUILD_SHARED_LIBS=OFF \
+		-Dprotobuf_ABSL_PROVIDER=module
+	cmake --build "${dir}/ios-build"
+
+	find "${dir}/ios-build" -name "libprotobuf*.a" -exec cp {} "${OUT}/" \;
+	mkdir -p "${ROOT}/thirdparty/protobuf/include"
+	rsync -a "${src}/src/google" "${ROOT}/thirdparty/protobuf/include/"
+
+	# 3) generate the TF/econ protobuf sources
+	local gen="${ROOT}/game/shared/generated_proto"
+	mkdir -p "${gen}"
+	for proto in game/shared/tf/tf_gcmessages.proto \
+	             game/shared/tf/tf_proto_def_messages.proto \
+	             game/shared/econ/econ_gcmessages.proto; do
+		[ -f "${ROOT}/${proto}" ] || continue
+		"${dir}/host/protoc" \
+			--proto_path="${ROOT}/game/shared/tf" \
+			--proto_path="${ROOT}/game/shared/econ" \
+			--cpp_out="${gen}" "${ROOT}/${proto}" \
+			&& echo "==> generated $(basename ${proto} .proto).pb.cc"
+	done
+	ls -la "${gen}" || true
+}
+
 build_zlib
 build_bzip2
 build_libpng
@@ -278,6 +344,7 @@ build_curl
 build_sdl2
 # Not optional when enabled: the iOS renderer needs EGL to link.
 build_angle
+build_protobuf
 
 echo "Installed iOS libraries:"
 ls -la "${OUT}"

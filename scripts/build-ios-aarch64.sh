@@ -42,7 +42,7 @@ CONFIGURE_ARGS=(
 	--ios
 	--togles
 	--disable-warns
-	--build-games=portal
+	--build-games=tf
 	--skip-sdl2-sanity-check
 )
 

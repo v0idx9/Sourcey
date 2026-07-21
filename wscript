@@ -667,6 +667,13 @@ def configure(conf):
 	check_deps( conf )
 
 	if conf.env.IOS:
+		# protobuf, staged by build-ios-deps.sh (needed only by the tf game).
+		protobuf_lib = os.path.abspath('lib/darwin/aarch64')
+		if os.path.isfile(os.path.join(protobuf_lib, 'libprotobuf.a')):
+			conf.env.LIB_PROTOBUF = ['protobuf']
+			conf.env.LIBPATH_PROTOBUF = [protobuf_lib]
+			conf.env.INCLUDES_PROTOBUF = [os.path.abspath('thirdparty/protobuf/include')]
+
 		conf.env.HAVE_SDL2 = 1
 		# Bind all imports at load instead of lazily. This binary uses classic
 		# lazy stubs (no chained fixups); on the target's dyld a strong lazy
